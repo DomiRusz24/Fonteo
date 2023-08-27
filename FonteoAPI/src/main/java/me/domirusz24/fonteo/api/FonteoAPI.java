@@ -71,9 +71,17 @@ public class FonteoAPI {
         return init(ExecutableSupplier.getFFmpeg(ffmpeg), ExecutableSupplier.getFFprobe(ffprobe));
     }
 
-    public static void processVideo(File video, File folder, String format, String extension, int fps, int width, int height, int columns, int rows, boolean flatFileNames) {
+    public enum FlattenVideoType {
+        CHAR_CODE, SIMPLE
+    }
 
-        if (flatFileNames) {
+    public static void processVideo(File video, File folder, String format, String extension, int fps, int width, int height, int columns, int rows) {
+        processVideo(video, folder, format, extension, fps, width, height, columns, rows, null);
+    }
+
+    public static void processVideo(File video, File folder, String format, String extension, int fps, int width, int height, int columns, int rows, FlattenVideoType flattenType) {
+
+        if (flattenType != null) {
             format = "%x-%y-%d";
         }
 
@@ -128,34 +136,71 @@ public class FonteoAPI {
             }
         }
 
-        if (flatFileNames) {
-            File[] files = folder.listFiles();
+        flattenFolder(video, folder, extension, columns, rows, flattenType);
+    }
 
-            if (files == null || files.length == 0) {
-                System.out.println("Folder is empty.");
-                return;
+    private static void flattenFolder(File video, File folder, String extension, int columns, int rows, FlattenVideoType flattenType) {
+
+        File[] files = folder.listFiles();
+
+        if (files == null || files.length == 0) {
+            System.out.println("Folder is empty.");
+            return;
+        }
+
+        if (flattenType == FlattenVideoType.CHAR_CODE) {
+            flattenCharCode(extension, columns, rows, files);
+        } else if (flattenType == FlattenVideoType.SIMPLE) {
+            flattenSimple(video, extension, columns, rows, files);
+        }
+    }
+
+    private static void flattenSimple(File video, String extension, int columns, int rows, File[] files) {
+        String name = video.getName().substring(0, video.getName().length() - 4);
+
+        for (File file : files) {
+            String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
+
+            String[] frameData = fileName.split("-");
+
+            int x = Integer.parseInt(frameData[0]);
+            int y = Integer.parseInt(frameData[1]);
+            int frame = Integer.parseInt(frameData[2]) - 1;
+
+
+            String newFileName = name + "-" + ((frame * rows * columns) + x + (y * columns) + 1) + "." + extension;
+            Path source = file.toPath();
+            Path target = file.getParentFile().toPath().resolve(newFileName);
+
+            try {
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                System.out.println("Failed to rename file: " + fileName);
+                e.printStackTrace();
             }
+        }
+    }
 
-            for (File file : files) {
-                String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
+    private static void flattenCharCode(String extension, int columns, int rows, File[] files) {
+        for (File file : files) {
+            String fileName = file.getName().substring(0, file.getName().lastIndexOf('.'));
 
-                String[] frameData = fileName.split("-");
+            String[] frameData = fileName.split("-");
 
-                int x = Integer.parseInt(frameData[0]);
-                int y = Integer.parseInt(frameData[1]);
-                int frame = Integer.parseInt(frameData[2]) - 1;
+            int x = Integer.parseInt(frameData[0]);
+            int y = Integer.parseInt(frameData[1]);
+            int frame = Integer.parseInt(frameData[2]) - 1;
 
 
-                String newFileName = "#" + getCharacterCode((frame * rows * columns) + x + (y * columns) + 1) + "." + extension;
-                Path source = file.toPath();
-                Path target = file.getParentFile().toPath().resolve(newFileName);
+            String newFileName = "#" + getCharacterCode((frame * rows * columns) + x + (y * columns) + 1) + "." + extension;
+            Path source = file.toPath();
+            Path target = file.getParentFile().toPath().resolve(newFileName);
 
-                try {
-                    Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    System.out.println("Failed to rename file: " + fileName);
-                    e.printStackTrace();
-                }
+            try {
+                Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                System.out.println("Failed to rename file: " + fileName);
+                e.printStackTrace();
             }
         }
     }

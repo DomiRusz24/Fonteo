@@ -24,10 +24,18 @@ import me.domirusz24.fonteo.api.UnsupportedOsException;
 import net.bramp.ffmpeg.FFmpeg;
 import org.apache.commons.cli.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 public class App {
-    public static void main(String[] args) throws IOException, UnsupportedOsException {
+    public static void main(String[] args) throws IOException, UnsupportedOsException, URISyntaxException {
+
+        if (args.length == 0) {
+            emptyMain();
+            return;
+        }
+
         Options options = new Options();
 
         options
@@ -139,9 +147,10 @@ public class App {
                 )
                 .addOption(
                         Option.builder()
-                                .hasArg(false)
-                                .longOpt("no-flat")
-                                .desc("don't flat out file names.")
+                                .hasArg()
+                                .longOpt("flatten-type")
+                                .desc("flatten type (simple, char_code) (default: simple).")
+                                .type(PatternOptionBuilder.NUMBER_VALUE)
                                 .build()
                 )
                 .addOption(
@@ -180,7 +189,7 @@ public class App {
             }
         }
 
-        if (cmd.getCmd().hasOption("format")) {
+        if (cmd.getCmd().hasOption("format") || !cmd.getCmd().hasOption("flatten-type")) {
             FonteoAPI.processVideo(
                     cmd.getOrCrash("input"),
                     cmd.getOrCrash("output"),
@@ -190,8 +199,7 @@ public class App {
                     cmd.getOrDefaultNumber("width", 765).intValue(),
                     cmd.getOrDefaultNumber("height", 510).intValue(),
                     cmd.getOrDefaultNumber("columns", 3).intValue(),
-                    cmd.getOrDefaultNumber("rows", 2).intValue(),
-                    false
+                    cmd.getOrDefaultNumber("rows", 2).intValue()
             );
         } else {
             FonteoAPI.processVideo(
@@ -204,8 +212,31 @@ public class App {
                     cmd.getOrDefaultNumber("height", 510).intValue(),
                     cmd.getOrDefaultNumber("columns", 3).intValue(),
                     cmd.getOrDefaultNumber("rows", 2).intValue(),
-                    !cmd.getCmd().hasOption("no-flat")
+                    FonteoAPI.FlattenVideoType.valueOf(cmd.getOrDefault("flatten-type", "simple").toUpperCase())
             );
+        }
+    }
+
+    public static void emptyMain() throws IOException, URISyntaxException {
+        FonteoAPI.init();
+
+        File folder = new File(new File(App.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath()).getParentFile();
+
+        for (File file : folder.listFiles()) {
+            if (file.getName().endsWith(".mp4") || file.getName().endsWith(".mov")) {
+                FonteoAPI.processVideo(
+                        file,
+                        new File(file.getName().substring(0, file.getName().length() - 4) + "-frames"),
+                        "%x-%y-%d",
+                        "png",
+                        20,
+                        765,
+                        510,
+                        3,
+                        2,
+                        FonteoAPI.FlattenVideoType.SIMPLE
+                );
+            }
         }
     }
 }
