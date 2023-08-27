@@ -1,3 +1,7 @@
-# uhh ice cream scoop
+# Fonteo
 
-## `java -jar FonteoCLI-VERSION.jar --help`
+## Split video into rows and columns while limiting their FPS
+
+### Usage:
+
+`java -jar FonteoCLI-VERSION.jar --help`
